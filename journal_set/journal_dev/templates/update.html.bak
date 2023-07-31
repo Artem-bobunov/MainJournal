@@ -1,0 +1,134 @@
+{% extends "base.html" %}
+
+{% block container %}
+{% if user.is_authenticated %}
+
+<style>
+.big {
+   background: #ccc;
+   height: 300px;
+}
+
+.btn {
+   font-size: 14px;
+}
+
+.box {
+   background: lightgreen;
+   height: 40px;
+}
+}
+.multiselect {
+  width: 200px;
+}
+
+.selectBox {
+  position: relative;
+}
+
+.selectBox select {
+  width: 100%;
+  font-weight: bold;
+}
+
+.overSelect {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  bottom: 0;
+}
+
+#checkboxes {
+  display: none;
+  border: 1px #dadada solid;
+}
+
+#checkboxes label {
+  display: block;
+}
+
+#checkboxes label:hover {
+  background-color: #1e90ff;
+}
+</style>
+<script>
+    var expanded = false;
+
+function showCheckboxes() {
+  var checkboxes = document.getElementById("checkboxes");
+  if (!expanded) {
+    checkboxes.style.display = "block";
+    expanded = true;
+  } else {
+    checkboxes.style.display = "none";
+    expanded = false;
+  }
+}
+</script>
+
+<div class="card">
+    <div class="card-header">
+        <h5 class="card-title">Редактирование входящего документа под № {{journal.numberInput}}</h5>
+    </div>
+    <div class="card-body">
+            <form method="post" enctype="multipart/form-data">
+                {% csrf_token %}
+                <ul class="list-group" >
+                    <!--<li class="list-group-item"><h6>Номер Входящий</h6> {{form.numberInput}}</li>-->
+				  <li class="list-group-item"><b>Дата регистрации</b> {{form.dateReg}}</li>
+                  <li class="list-group-item"><b>Корреспондент (откуда поступило)</b> {{form.correspondent}}</li>
+                  <li class="list-group-item"><b>Краткое содержание</b> {{form.content}}</li>
+                  <li class="list-group-item"><b>Дата и исходящий номер</b> {{form.datenumber}}</li>
+                  <li class="list-group-item"><b>Исполнители:</b> <br> {{journal.executor}}</li>
+                  <li class="list-group-item">
+               <div class="multiselect ">
+                <div class="selectBox" onclick="showCheckboxes()">
+                  <select class="form-select">
+                    <option>Выберите исполнителя</option>
+                  </select>
+                  <div class="overSelect"></div>
+                </div>
+                <div id="checkboxes">
+                  <label for="one" >
+                    <input class = "form-check-input" type="checkbox" id="one" name="us" value="Бурлаков Алексей Викторович" />Бурлаков Алексей Викторович</label>
+                  <label for="two">
+                    <input class = "form-check-input" type="checkbox" id="two" name="us" value="Алиева Елена Юрьевна" />Алиева Елена Юрьевна</label>
+                  <label for="three">
+                    <input class = "form-check-input" type="checkbox" id="three"  name="us" value="Ведищев Виктор Николаевич"/>Ведищев Виктор Николаевич</label>
+                  <label for="four">
+                    <input class = "form-check-input" type="checkbox" id="four"  name="us" value="Любич Лариса Валентиновна"/>Любич Лариса Валентиновна</label>
+                  <label for="five">
+                    <input class = "form-check-input" type="checkbox" id="five"  name="us" value="Чуйкин Александр Александрович"/>Чуйкин Александр Александрович</label>
+                  <label for="six">
+                    <input  class = "form-check-input"type="checkbox" id="six"  name="us" value="Александров Александр Александрович"/>Александров Александр Александрович</label>
+                  <label for="seven">
+                    <input class = "form-check-input" type="checkbox" id="seven" name="us" value="Леонтьева Ольга Петровна"/>Леонтьева Ольга Петровна</label>
+                  <label for="eight">
+                    <input class = "form-check-input" type="checkbox" id="eight" name="us" value="Селеменчук Елена Владимировна"/>Селеменчук Елена Владимировна</label>
+                  <label for="nine">
+                    <input class = "form-check-input" type="checkbox" id="nine" name="us" value="Прищепа Алексей Алексеевич" />Прищепа Алексей Алексеевич</label>
+                  <label for="ten">
+                    <input class = "form-check-input" type="checkbox" id="ten" name="us"  value="Пушнин Роман Юрьевич"/>Пушнин Роман Юрьевич</label>
+                  <label for="eleven">
+                    <input  class = "form-check-input" type="checkbox" id="eleven" name="us" value="Котова Светлана Александровна"/>Котова Светлана Александровна</label>
+					 <label for="twelve">
+                    <input  class = "form-check-input" type="checkbox" id="twelve" name="us" value="Долгов Владимир Владимирович"/>Долгов Владимир Владимирович</label>
+                </div>
+              </div>
+
+      </li>
+      <li class="list-group-item"><b>Сроки исполнения</b>{{form.executionDate}}</li>
+      <li class="list-group-item"><b>Отметка об исполнении</b>{{form.mark}}</li>
+      <li class="list-group-item"><b>Подпись сотрудника</b><br> {{journal1.user}}</li>
+
+
+
+
+            </ul>
+        <center><button type="submit" class="btn btn-warning mt-2">Изменить</button></center>
+        </form>
+    </div>
+</div>
+{% endif %}
+{% endblock %}

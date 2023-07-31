@@ -1,0 +1,350 @@
+import csv
+from functools import reduce
+import operator
+from django.core.paginator import Paginator, PageNotAnInteger, EmptyPage
+from django.db.models import Q
+from django.http import HttpResponse
+from django.shortcuts import render, redirect
+from .models import *
+from .forms import *
+from .logger import *
+from .users import *
+import datetime
+#from datetime import datetime
+
+BLOG_POSTS_PER_PAGE = 25
+# Create your views here.
+def notification(request):
+    lf_name = '{} {}'.format(request.user.last_name, request.user.first_name)
+    for k, v in us_journal.items():
+        for value in v:
+            if value in lf_name:
+                nm = k
+    print(nm)
+    obj = InputJournal.objects.filter(nomenklatura__icontains = nm).order_by('-id')
+    print(obj.count())
+    obj1 = InputJournal.objects.filter(nomenklatura__icontains = nm).exclude(signature__nomenklatura__icontains = nm)
+    print(obj1.count())
+    return render(request,'notification.html', context={'obj':obj1,'nm':nm})
+
+def exportcsv(request):
+    obj = InputJournal.objects.all()
+    # id_build = Building.objects.latest('id').id
+    # print(id_build)
+    #myFilter = exportCSV(request.GET, queryset=obj)
+    response = HttpResponse(content_type='text/csv')
+    response['Content-Disposition'] = 'attachment; filename="file.csv"'
+    writer = csv.writer(response)
+    writer.writerow(['Номер Входящий','Кореспондент (откуда поступило)','Краткое содержание',
+                     'Исполнитель','Сроки исполнения','Отметка об исполнении','Номенклатура',
+                     'Подпись пользователя'])
+
+    for e in obj.values_list('numberInput', 'correspondent', 'content', 'executor',
+                             'executionDate','mark','nomenklatura','signature__user'):
+        writer.writerow(e)
+    return response
+
+
+def greetings(request):
+    return render(request,'greetings.html')
+
+#@login_required()
+def listJournal(request):
+    #nm=None
+    lf_name = '{} {}'.format(request.user.last_name, request.user.first_name)
+    for k, v in us_journal.items():
+        for value in v:
+            if value in lf_name:
+                nm = k
+    obj1 = InputJournal.objects.filter(nomenklatura__icontains = nm).exclude(signature__nomenklatura__icontains=nm).count()
+    request.session.set_expiry(32400)
+    request.session['user_sucsess'] = True
+    list  = InputJournal.objects.order_by('-id')
+    paginator = Paginator(list, BLOG_POSTS_PER_PAGE)
+    page_number = request.GET.get('page')
+    try:
+        pages0 = paginator.page(page_number)
+    except PageNotAnInteger:
+        pages0 = paginator.page(1)
+    except EmptyPage:
+        pages0 = paginator.page(paginator.num_pages)
+    return render(request,'list.html',{'pages0':pages0,'obj1':obj1})
+
+def FilterList(request):
+    list_object = None
+    list = None
+    pages = None
+
+    print('good')
+    date = request.POST.get('calendar')
+    #vxn = request.POST.get('vxnumber')
+    #isxn = request.POST.get('isxnumber')
+    query_dict = request.GET
+    query = query_dict.get("q")
+
+    if query is not None:
+        list_object = InputJournal.objects.filter(Q(correspondent__icontains=query) |
+                                             Q(content__icontains=query) |
+                                             Q(executor__icontains=query) |
+                                             Q(executionDate__icontains=query) |
+                                             Q(datenumber__icontains=query) |
+                                             Q(mark__icontains=query) |
+                                             Q(numberInput__icontains=query) 
+
+                                           ).order_by('-id')
+        print('Good')
+
+        paginator = Paginator(list_object, BLOG_POSTS_PER_PAGE)
+        page_number = request.GET.get('page')
+        try:
+            pages = paginator.page(page_number)
+        except PageNotAnInteger:
+            pages = paginator.page(1)
+        except EmptyPage:
+            pages = paginator.page(paginator.num_pages)
+
+    return render(request, 'list.html', context={'list': list,"list_object": list_object,'pages':pages})
+
+
+
+def Create(request):
+    ls_id = InputJournal.objects.last().id
+    exec = request.POST.getlist('us')
+    print(exec)
+    key=None
+
+    nul = 0
+    form = FormInputJournal(request.POST or None)
+    #form1 = FormSignature(request.POST or None)
+    if form.is_valid() :#or form1.is_valid()
+        try:
+            instance = form.save()
+            #instance.numberInput = int(request.POST.get('numberInput'))+1
+            instance.numberInput = ls_id+1
+            instance.signature = Signature.objects.create(numberInput=ls_id+1,user = '',nomenklatura = '')
+            instance.dateTimeReg = datetime.datetime.now().strftime("%Y-%m-%d %H:%M")
+  
+            for k,v in us_journal.items():
+                for value in v:
+                    if value in exec:
+                        #print(value)
+                        #print(k)
+                        print('Нашел',k)
+                        usnumber.append(k)
+
+            instance.executor = ','.join(exec[i] for i in range(len(exec)))
+            instance.nomenklatura = ','.join(usnumber[i] for i in range(len(usnumber)))
+            instance.save()
+            #instance1 = form1.save()
+            #instance1.instance1 = InputJournal.objects.create(numberInput = ls_id+1)
+            #instance1.save()
+
+            print(usnumber)
+            del usnumber[:]
+            return redirect('/Журнал входящих документов/Документы/')
+        except Exception as e:
+            print(e)
+    else:
+        form = FormInputJournal()
+    return render(request, 'create.html', {'form': form})
+
+def Detail(request, id):
+    request.session['return_path'] = request.META.get('HTTP_REFERER', '/')
+    #request.session['return_path1'] = request.META.get('HTTP_REFERER', '/')
+
+    #print(InputJournal.objects.first().id)
+    lf_name = '{} {}'.format(request.user.last_name,request.user.first_name)
+    sign = Signature.objects.get(id=id)
+
+    #print(lf_name)
+    nm = None
+    nm1 = None
+    opd = None
+    for k, v in us_journal.items():
+        for value in v:
+            if value in lf_name:
+                nm = k
+    #print(nm,'Номер в Json nm')
+    number_nomenklature = InputJournal.objects.get(id=id).nomenklatura
+    #print(number_nomenklature)
+    for i in number_nomenklature.split(','):
+        #print(i)
+        if i in nm:
+           nm1 = i
+    #print(nm1,'Номер в базе nm1')
+    detail = None
+    sign_users = sign.user
+    #print('Пользователи с подписями:',sign_users)
+    #print(len(sign_users))
+    opd = None
+    if nm   in number_nomenklature:
+        opd = nm
+        #print('opd',opd)
+
+    m = len(InputJournal.objects.get(id=id).executor.split(','))
+    nex = sign.nomenklatura
+    #print(nex, nm1)
+
+    pg = 0
+    if str(nm1) not in  str(nex):
+        pg = True
+    else:
+        pg = False
+    """
+    s = str(sign.user).split(' ')[1:]
+    print(sign.user.split(' '))
+    a = [s[i:i + 3] for i in range(0, len(s), 3)]
+    h = 0
+    res = []
+    for i  in a:
+        for j in i:
+            print(j)
+            h += 1
+            d = ' '.join(i)
+
+            if h == 3:
+                break
+        res.append(d)
+    print(res)"""
+
+    if request.method == "GET":
+        try:
+            detail = InputJournal.objects.get(id=id)
+        except:
+            print("Не удалось просмотреть детали")
+    return render(request, 'detail.html', {'details': detail,'n1':nm1,'n2':nm,'nex':nex,'opd':opd,'pg':pg ,'sign':sign, 'lf_name':lf_name,'sign_users':sign_users})
+
+def Update (request,id):
+
+    journal = InputJournal.objects.get(id=id)
+    journal1 = Signature.objects.get(id=id)
+    exec = request.POST.getlist('us', default=None)
+    u = journal.executor
+    u1 = journal.nomenklatura
+    u2 = journal1.nomenklatura
+    u3 = journal1.user
+    print(u)
+    v = len(exec)
+    print(v,'7879')
+    print(exec,'0')
+    #user_dep = []
+    #user_dep.append(journal.executor)
+    #print(user_dep)
+    form = FormInputJournal(instance=journal)
+    form1 = FormSignature(instance=journal1)
+    if request.method == 'POST':
+        form = FormInputJournal(request.POST or None,instance = journal)
+        form1 = FormSignature(request.POST or None,instance = journal1)
+        if form.is_valid() or form1.is_valid():
+            try:
+                for k, v in us_journal.items():
+                    for value in v:
+                        if value in exec:
+                            # print(value)
+                            # print(k)
+                            print('Нашел', k)
+                            usnumber.append(k)
+                #InputJournal.objects.filter(nomenklatura = ','.join(usnumber[i] for i in range(len(usnumber)))).update(nomenklatura = None)
+                #Signature.objects.filter(id=journal.id).update(numberInput=journal.id, user='', datemark=None)
+                instance = form.save(commit=False)#
+                instance.signature =  Signature.objects.get(id=id)
+                instance.id = journal.id
+                instance.numberInput = journal.id
+                #instance.dateTimeReg = journal.dateTimeReg
+
+                instance1 = form1.save()
+
+
+
+                if exec == []:
+                    print('Тута1')
+                    #При условии если выбираю новых исполнителей
+                    instance.executor = u
+                    instance.nomenklatura =  u1
+                    instance1.user = u3
+                    instance1.numberInput = journal1.id
+                    instance1.id = journal1.id
+                    instance1.nomenklatura = u2
+
+
+
+                elif exec != 0:
+                    print('Тута')
+                    instance.executor = ','.join(exec[i] for i in range(len(exec)))
+                    instance.nomenklatura =  ','.join(usnumber[i] for i in range(len(usnumber)))
+                    instance1.user = None
+                    instance1.numberInput = journal1.id
+                    instance1.id = journal1.id
+                    instance1.nomenklatura = ''
+                    #instance.dateTimeReg = journal.dateTimeReg
+
+                instance.save()
+
+
+
+                instance1.save()
+
+                log = LoggerJournal(request.user, str(id))
+                log.update_record()
+                del usnumber[:]
+                return redirect(request.session['return_path'])
+            except Exception as e:
+                print(e)
+        else:
+            form = FormInputJournal()
+            form1 = FormSignature()
+    return render(request, 'update.html', {'form': form,'journal':journal,'form1': form1,'journal1':journal1})
+
+def Mark (request,id):
+    request.session.set_expiry(32400)
+    request.session['mark'] = True
+    now = datetime.datetime.now()
+    dt_string = now.strftime("%Y-%m-%d")
+    lf_name = '{} {}'.format(request.user.last_name, request.user.first_name)
+    journal = Signature.objects.get(id=id)
+    #form1 = FormSignature(instance=journal)
+    print(journal.nomenklatura)
+    ok = None
+
+    k = ''
+    if journal.user == None:
+
+        k = lf_name
+        print(k,'222')
+    elif journal.user != None:
+        print(journal.user,'1')
+        k = '{} {}'.format(journal.user,lf_name)#journal.user,
+    for k1, v1 in us_journal.items():
+        for value in v1:
+            if value in lf_name:
+                # print(value)
+                # print(k)
+                ok = k1
+                print('Нашел', k1)
+    print(ok)
+    if  ok in journal.nomenklatura or ok not in InputJournal.objects.get(id=id).nomenklatura : #
+        mark_success = False
+    else:
+        mark_success = True
+    #print(journal.user)
+    #print(journal.user.split('None'))
+    if request.POST.get('res'):
+        #form1 = FormSignature(request.POST or None, instance=journal)
+        #if form1.is_valid():
+            #try:
+
+                Signature.objects.filter(id=journal.id).update(numberInput=journal.id, user=k, nomenklatura='{},{}'.format(journal.nomenklatura,ok))
+                print(k,'999')
+                #print(dt_string)
+                #isinstance =form1.save()
+                #isinstance.numberInput = journal.id
+                #isinstance.user = '{},{}'.format(journal.user,lf_name)
+                # isinstance.save()
+                log = LoggerJournal(request.user, str(id))
+                log.mark_users()
+                return redirect(request.session['return_path'])
+            #except Exception as e:
+            #    print(e)
+        #else:
+        #    form1 = FormSignature()
+    return render(request, "mark.html", {'journal':journal,'mark_success':mark_success})#

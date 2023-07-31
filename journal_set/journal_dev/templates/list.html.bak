@@ -1,0 +1,131 @@
+{% extends "base.html" %}
+
+{% block container %}
+
+{% if user.is_authenticated %}
+<style>
+ th,tr {
+ text-align: center;
+ }
+  li{
+      margin-bottom:15px;
+      }
+      tr.pointer {
+      cursor: pointer;
+      }
+
+</style>
+<div class="row">
+    <div class="col">
+        <h5 style="text-align:center; font-weight:600; margin-bottom:30px;">Журнал входящих документов 2023 год</h5>
+    </div>
+    <div class="col">
+            <a class="btn btn-secondary " href="{%url 'notification' %}" >
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-bell-fill" viewBox="0 0 16 16">
+                    <path d="M8 16a2 2 0 0 0 2-2H6a2 2 0 0 0 2 2zm.995-14.901a1 1 0 1 0-1.99 0A5.002 5.002 0 0 0 3 6c0 1.098-.5 6-2 7h14c-1.5-1-2-5.902-2-7 0-2.42-1.72-4.44-4.005-4.901z"/>
+                </svg>
+                {% if obj1 > 0 %}
+                        <span class="badge bg-danger up">{{ obj1 }}</span>
+                {% endif %}
+            </a>
+    </div>
+
+
+</div>
+<form class="form-inline" action="{% url 'filter'%}" method="get">
+              <div class="input-group mb-3" >
+                <input type="text" class="form-control" placeholder="Введите запрос" aria-label="Введите запросe" name="q">
+                <button class="btn btn-outline-primary" type="submit">Поиск</button>
+              </div>
+          </form>
+
+
+<form  method="post" action="{% url 'filter' %}" >
+    {% csrf_token %}
+<!--<input class="btn btn-success" type="submit" value="Поиск">-->
+
+    <table class="table table-bordered table-hover">
+      <thead class="thead-light">
+        <tr valign="middle"  class="table-light">
+          <th >Входящий номер </th>
+          <th >Дата регистрации</th>
+          <th>
+             Корреспондент (откуда поступило)
+          </th>
+          <th> Краткое содержание
+          </th>
+		  <th>Дата и номер исходящий
+          </th>
+          <th valign="middle">Исполнитель
+          </th>
+          <th>Сроки исполнения</th>
+          <th>Отметка об исполнении</th>
+          <th>
+              Подпись исполнителя
+		  </th>
+		   {% if user.is_superuser %}
+		   <th>
+              Дата и время регистрации
+		  </th>
+		   {% endif %}
+
+        </tr>
+      </thead>
+      <tbody  href = "{% url 'list' %}">
+          {% for i in pages%}
+         <tr class="pointer" onclick="document.location = '{% url 'detail' i.pk %}';">
+          <th scope="row">{{i.numberInput|default_if_none:"&nbsp;"}}</th>
+          <td>{{i.dateReg|default_if_none:"&nbsp;"}}</td>
+          <td>{{i.correspondent}}</td>
+
+          <td>{{i.content|default_if_none:"&nbsp;"}}</td>
+		   <td>{{i.datenumber|default_if_none:"&nbsp;"}}</td>
+          <td>{{i.executor|default_if_none:"&nbsp;"}}</td>
+          <td>{{i.executionDate|default_if_none:"&nbsp;"|date:'d.m.Y'}}</td>
+          <td>{{i.mark|default_if_none:"&nbsp;"}}</td>
+          <td>{{i.signature.user|default_if_none:"&nbsp;"}}</td>
+		   {% if user.is_superuser %}
+		   <td>{{i.dateTimeReg|default_if_none:"&nbsp;"}}</td>
+		   {% endif %}
+          </tr>
+          {% endfor %}
+          {% for i in pages0%}
+         <tr class="pointer" onclick="document.location = '{% url 'detail' i.pk %}';">
+          <th scope="row">{{i.numberInput|default_if_none:"&nbsp;"}}</th>
+		  <td>{{i.dateReg|default_if_none:"&nbsp;"}}</td>
+          <td>{{i.correspondent|default_if_none:"&nbsp;"}}</td>
+          <td>{{i.content|default_if_none:"&nbsp;"}}</td>
+		  <td>{{i.datenumber|default_if_none:"&nbsp;"}}</td>
+          <td>{{i.executor|default_if_none:"&nbsp;"}}</td>
+          <td>{{i.executionDate|default_if_none:"&nbsp;"|date:'d.m.Y'}}</td>
+          <td>{{i.mark|default_if_none:"&nbsp;"}}</td>
+          <td>{{i.signature.user|default_if_none:"&nbsp;"}}</td>
+		   {% if user.is_superuser %}
+				<td>{{i.dateTimeReg|default_if_none:"&nbsp;"}}</td>
+		   {% endif %}
+          </tr>
+          {% endfor %}
+
+
+
+
+      </tbody>
+    </table>
+</form>
+<div class="row">
+  <div class="col" style="text-align:center">
+  {% if pages %}
+      {% include 'pagination.html' with page=pages  %}
+  {% elif pages0 %}
+      {% include 'pagination.html' with page=pages0  %}
+  {% endif %}
+  </div>
+    <div class="col-2 exportcsv"><a  href="{% url 'exportcsv' %}?{{request.GET.urlencode}}" style="">
+        <button type="button" class="btn btn-outline-success">Экспорт данных</button></a></div>
+
+  </div>
+
+
+{% endif %}
+
+{% endblock %}
